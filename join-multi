@@ -1,0 +1,52 @@
+#!/bin/bash
+############################################################
+# (c) Jim Gerdy 
+# 2012
+# github.com/jgerdy/utilities
+############################################################
+TSTMP=$( date +%Y%m%d-%H%M%S.%N )
+usage() {
+cat << EOF
+usage: $( basename $0 ) options FILE1 FILE2 FILE3 ...
+	Join multiple files
+	Join on first columns of each file
+
+	NOTE: Caches temporary joins to /tmp (and removes at end of run).
+
+	Example:
+	$( basename $0 ) FILE1 FILE2
+	$( basename $0 ) FILE1 FILE2 FILE3
+EOF
+}
+
+# parse cmdline 
+OPTS=$( getopt -o hz --long debug,help,verbose -- "$0" )
+if [[ $? != 0 ]] ; then echo "Failed parsing options." >&2 ; usage ; exit 1 ; fi
+shopt -s extglob
+while true ; do case $1 in
+        --debug )     		DEBUG=1 ; shift ; ;;
+        -h | --help )           usage ; exit 1 ; ;;
+        --verbose )   		VERBOSE=1 ; shift ; ;;
+        * )                     break ; ;;
+esac ; done
+shift $(( $OPTIND -1 ))
+CMDARGS_REMAINING=$0
+
+TMP=/tmp/join-multi.tmpjoin.2.$TSTMP.txt
+join $1 $2 > $TMP
+COUNT=0
+
+for itm in $@ ; do
+	COUNT=$(( $COUNT + 1 ))
+	if [[ $COUNT -le 2 ]] ; then continue ; fi
+	LASTTMP=$TMP
+	TMP=/tmp/join-multi.tmpjoin.$COUNT.$TSTMP.txt
+	if [[ $DEBUG -eq 1 ]] ; then  
+		printf "$( basename $0 ): DEBUG <COUNT=$COUNT}itm=$itm>\n" ; fi
+	join $LASTTMP $itm > $TMP
+	rm -f $LASTTMP ;
+done
+
+cat $TMP
+rm -f $TMP ;
+
